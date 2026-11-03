@@ -1,75 +1,97 @@
-# Student Pass/Fail Clustering: Feature Engineering & Unsupervised Learning
+# Student Pass/Fail Clustering (Feature Engineering & K-Means)
 
-This project explores **Feature Engineering** and **Unsupervised Learning** (specifically **K-Means Clustering**) to group students into Pass/Fail categories based on their academic behavior and historical metrics.
-
----
-
-## 🎯 Project Objectives
-
-1. **Clean and Validate Data**: Handle missing values, duplicate entries, and boundary checks.
-2. **Prevent Answer Leakage**: Strictly isolate the `actual` target column before feature creation or clustering.
-3. **Domain Feature Engineering**: Create intuitive features (`sleep_deviation`, `risk_count`, `engagement_score`).
-4. **Multicollinearity Pruning**: Detect features with correlation $|r| > 0.85$ and drop redundant ones (`engagement_score`).
-5. **Feature Standardization**: Scale features with `StandardScaler()` so Euclidean distance operates fairly.
-6. **K-Means Clustering ($k=2$)**: Train clustering before and after feature engineering and evaluate using:
-   - **Silhouette Score** (intrinsic cluster separation)
-   - **Accuracy & Confusion Matrix** (external validation against actual outcomes).
-7. **Bonus Analysis**: Test logarithmic transformation (`np.log1p()`) on `absences`.
+**Student:** Ny Rosa  
+**Course:** Machine Learning / Unsupervised Learning  
+**Assignment:** Homework 02 - Student Pass/Fail Clustering with Feature Engineering  
 
 ---
 
-## 📊 Summary of Results
+## Overview
 
-| Metric | Before Feature Engineering | After Feature Engineering | Net Change |
+This project tests whether feature engineering can improve unsupervised K-Means clustering ($k=2$, `random_state=42`) on student academic records (`students_dataset.csv`, 600 students).
+
+The goal is to separate students into Pass and Fail groups based only on behavioral features, keeping the `actual` label aside strictly to evaluate final accuracy.
+
+---
+
+## Workflow Followed
+
+1. **Target Isolation (No Answer Leakage):**
+   Immediately popped the `actual` column before doing any feature creation or clustering (`y = df.pop("actual")`). The unsupervised algorithm never sees the ground truth.
+
+2. **Data Cleaning & Boundary Checks:**
+   - Checked duplicates: `0` found.
+   - Checked missing values: `0` found.
+   - Checked ranges: percentages (`attendance_pct`, `assignments_done_pct`, `previous_grade`) are within `0–100%`, and hours/absences are non-negative.
+
+3. **Feature Engineering:**
+   - `sleep_deviation = abs(sleep_hours - 8)`: measures sleep disruption from the normal 8-hour baseline.
+   - `risk_count = (study < 2) + (att < 70) + (grade < 50) + (abs >= 10)`: counts how many academic red flags a student has (0 to 4).
+   - `engagement_score = (attendance_pct + assignments_done_pct) / 2`: candidate average of attendance and assignments.
+
+4. **Multicollinearity Check (|r| > 0.85):**
+   - `assignments_done_pct` and `engagement_score` had a correlation of **0.918**. Because it strongly duplicates the homework column, `engagement_score` was removed.
+   - `sleep_hours` and `sleep_deviation` had a correlation of **-0.815** (below 0.85), so both were kept.
+   - This leaves **8 final features** for clustering.
+
+5. **Scaling & K-Means Clustering:**
+   - Scaled all features with `StandardScaler()` so large scales like attendance (50–100) don't dominate small scales like sleep (4–10).
+   - Trained K-Means ($k=2$, `random_state=42`) before and after feature engineering.
+
+---
+
+## Results Summary
+
+| Metric | Before Feature Engineering | After Feature Engineering | Difference |
 | :--- | :---: | :---: | :---: |
-| **Features Used** | 6 original features | 8 features | +2 engineered |
-| **Clustering Accuracy** | **0.822** (493 / 600) | **0.842** (505 / 600) | **+0.020 (+12 students)** |
-| **Silhouette Score** | **0.295** | **0.294** | -0.001 (consistent) |
+| **Features Used** | 6 original features | 8 features (+2 engineered) | +2 features |
+| **Clustering Accuracy** | **82.17%** (493 / 600) | **84.17%** (505 / 600) | **+2.00% (+12 students)** |
+| **Silhouette Score** | **0.295** | **0.294** | -0.001 (same) |
 
 ### Confusion Matrix (After Feature Engineering)
-```
-                Predicted Fail  Predicted Pass
-Actually Fail        169             41
-Actually Pass         54            336
-```
-- **Overall Accuracy**: $(169 + 336) / 600 = 84.17\%$
+
+| | Predicted Fail | Predicted Pass | Total |
+| :--- | :---: | :---: | :---: |
+| **Actually Fail** | **169** | 41 | 210 |
+| **Actually Pass** | 54 | **336** | 390 |
+| **Total** | 223 | 377 | 600 |
+
+*Overall Accuracy: (169 + 336) / 600 = 84.17%*
 
 ---
 
-## 📁 Repository Structure
+## Key Findings & Explanation
 
-```
-├── students_dataset.csv             # Raw input dataset (600 students, 7 columns)
-├── students_engineered.csv          # Final engineered dataset (8 features, no answer leakage)
-├── pass_fail_clustering.ipynb       # Complete, executed Jupyter Notebook with all outputs & plots
-├── ANSWER_SHEET.md                  # Completed assignment answer sheet (Markdown format)
-├── Feature Engineering Criteria.pdf # Assignment specification and grading rubric
-└── results/
-    ├── Answer_Sheet.docx            # Completed answer sheet (MS Word format)
-    ├── confusion_matrix_before_after.png # Colab-style confusion matrix plot (Before vs After)
-    ├── silhouette_analysis.png      # Cluster silhouette diagrams (Before vs After)
-    ├── pca_clusters.png             # 2D PCA projection of student clusters
-    ├── feature_ablation.png         # Bar chart comparing all feature combinations
-    ├── feature_ablation.csv         # Table metrics for all feature combinations
-    ├── correlation_matrix.png       # Correlation heatmap showing multicollinearity
-    └── metrics_comparison.csv       # Summary metrics table
-```
+- **Did feature engineering help?**  
+  Yes. Accuracy improved from 82.2% to 84.2%, meaning 12 additional students were grouped into their correct outcome. The silhouette score stayed essentially flat (0.295 vs 0.294), meaning cluster compactness in Euclidean space didn't change much, but the cluster boundary shifted closer to real-world passing/failing behavior.
+
+- **Which feature helped most?**  
+  `risk_count` helped the most. When tested by itself in our feature ablation test, adding `risk_count` alone reached **85.83% accuracy** (515/600 students). Combining multiple warning signs into a single count gives K-Means a very strong signal for struggling students.
+
+- **Bonus (`np.log1p` on absences):**  
+  Applying `np.log1p()` to `absences` dropped accuracy from 84.17% down to 82.50%. The skewness of `absences` is only 0.273 (already fairly symmetric), so taking the log unnecessarily compressed the gap between normal and chronically absent students.
 
 ---
 
-## 🚀 How to Run
+## Repository Contents
 
-Open [`pass_fail_clustering.ipynb`](file:///home/rosa/ai-exercise/exercise-4/pass_fail_clustering.ipynb) in **VS Code**, **JupyterLab**, or upload it to **Google Colab** to execute cells interactively.
+- `pass_fail_clustering.ipynb`: Complete, executed Jupyter Notebook with all steps, metrics, and visual plots.
+- `ANSWER_SHEET.md`: Completed answer sheet matching the assignment rubric.
+- `students_dataset.csv`: Original dataset (600 rows, 7 columns).
+- `students_engineered.csv`: Exported dataset with the final 8 engineered features (without `actual`).
+- `Feature Engineering Criteria.pdf`: Official assignment prompt and grading criteria.
+- `results/`:
+  - `Answer_Sheet.docx`: Completed Word document submission.
+  - `confusion_matrix_before_after.png`: Before vs After confusion matrix plot.
+  - `silhouette_analysis.png`: Cluster silhouette diagrams.
+  - `pca_clusters.png`: 2D PCA cluster projection.
+  - `feature_ablation.png`: Bar chart comparing individual feature contributions.
+  - `feature_ablation.csv`: Metrics table for each feature combination.
+  - `correlation_matrix.png`: Heatmap showing correlation between features.
+  - `metrics_comparison.csv`: Summary metrics comparison table.
 
 ---
 
-## 💡 Key Learnings
+## How to Run
 
-1. **Why K-Means is Unsupervised**:
-   K-Means does not use labels during training. It iteratively partitions points into $k$ groups by minimizing the within-cluster sum of squared distances to the nearest centroid.
-2. **Why Scaling Matters**:
-   Because K-Means uses Euclidean distance, a feature with values between 0–100 (like attendance) would exert 10× more influence than a feature with values between 4–10 (like sleep). Standardizing to mean 0 and variance 1 puts all features on equal footing.
-3. **Why Remove Target (`actual`)**:
-   Keeping the target in unsupervised clustering leads to trivial clustering (data leakage). The algorithm must discover patterns purely from behavioral signals.
-4. **Why Feature Engineering Helps**:
-   Features like `risk_count` combine multiple weak academic indicators into a strong combined signal, making high-risk students geographically isolated from passing students in high-dimensional space.
+Open `pass_fail_clustering.ipynb` in VS Code, JupyterLab, or Google Colab, and run the cells in order from top to bottom.
