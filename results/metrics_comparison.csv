@@ -1,0 +1,4 @@
+Metric,Before FE (6 features),After FE (8 features),Difference
+Accuracy (compared with actual),0.822,0.842,+0.020 (+2.0%)
+Correctly Grouped Students,493 / 600,505 / 600,+12 students
+Silhouette Score,0.295,0.294,-0.001

@@ -1,0 +1,6 @@
+Feature Combination,Num Features,Accuracy,Silhouette,Correct Students
+Original 6 features,6,0.8216666666666667,0.2951450783154781,493 / 600
++ risk_count only,7,0.8583333333333333,0.3124638760451497,515 / 600
++ sleep_deviation only,7,0.8183333333333334,0.2749415030362972,491 / 600
++ sleep_deviation + risk_count (Final 8),8,0.8416666666666667,0.29388997043359344,505 / 600
++ All 3 (keeps collinear engagement_score),9,0.8283333333333334,0.29748932730876787,497 / 600
